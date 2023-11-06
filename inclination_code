@@ -1,0 +1,54 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import make_interp_spline
+from datetime import datetime, timedelta
+
+# Функция для чтения данных TLE и построения графика наклона орбиты
+def generate_inclination_plot(tle_file_path, label):
+    with open(tle_file_path, "r") as tle_file:
+        tle_lines = tle_file.read().splitlines()
+
+    inclinations_dict = {}
+    for i in range(0, len(tle_lines), 2):
+        tle_line1 = tle_lines[i]
+        if i + 1 < len(tle_lines):
+            tle_line2 = tle_lines[i + 1]
+            inclination = float(tle_line2[8:16])
+            tle_epoch = float(tle_line1[18:32])
+            epoch_date = datetime(2000 + int(tle_epoch // 1000), 1, 1) + timedelta(days=int(tle_epoch % 1000) - 1)
+
+            if epoch_date not in inclinations_dict:
+                inclinations_dict[epoch_date] = []
+            inclinations_dict[epoch_date].append(inclination)
+
+    epochs = list(inclinations_dict.keys())
+    averaged_inclinations = [np.mean(inclinations_dict[epoch]) for epoch in epochs]
+
+    x_numerical = [float((epoch - datetime(1970, 1, 1)).total_seconds()) for epoch in epochs]
+    x_smooth = np.linspace(min(x_numerical), max(x_numerical), 300)
+    spline = make_interp_spline(x_numerical, averaged_inclinations, k=3)
+    inclinations_smooth = spline(x_smooth)
+
+    x_smooth_dates = [datetime(1970, 1, 1) + timedelta(seconds=x) for x in x_smooth]
+
+    plt.plot(x_smooth_dates, inclinations_smooth, label=label)
+
+# Создание новой фигуры
+plt.figure(figsize=(10, 6))
+
+# Генерация графиков для разных файлов TLE
+generate_inclination_plot("tle_satellite1.txt", label="KazSTSat")
+
+
+# Настройка графика
+plt.xlabel("Дата")
+plt.ylabel("Наклон орбиты (градусы)")
+plt.title("Наклонение орбиты KazSTSat")
+plt.grid(True)
+
+# Добавление легенды
+plt.legend()
+
+# Сохранение или отображение графика
+plt.savefig("объединенный_график.png", format="png", transparent=True)
+plt.show()
